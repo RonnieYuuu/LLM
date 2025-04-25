@@ -1,50 +1,68 @@
-import os
-import requests
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from openai import OpenAI
 
-# 直接设置 API key
-api_key = "your_openai_api_key_here"
+client = OpenAI(api_key="")
 
 headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
 }
 
 class Website:
     def __init__(self, url):
         """
-        Create this Website object from the given url using the BeautifulSoup library
+        使用 Selenium 模拟浏览器访问网站，提取网页标题和正文文本
         """
         self.url = url
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        self.title = soup.title.string if soup.title else "No title found"
-        for irrelevant in soup.body(["script", "style", "img", "input"]):
+
+        # 设置无头浏览器选项
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument(f"user-agent={headers['User-Agent']}")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+
+        # 初始化 WebDriver
+        driver = webdriver.Chrome(options=options)
+        driver.get(url)
+        time.sleep(3)  # 等待页面加载完成（可根据网络调整时间）
+
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        driver.quit()
+
+        # 提取标题和正文
+        self.title = soup.title.string.strip() if soup.title else "No title found"
+        for irrelevant in soup(["script", "style", "img", "input", "nav", "footer", "aside"]):
             irrelevant.decompose()
-        self.text = soup.body.get_text(separator="\n", strip=True)
+        body = soup.find("body")
+        self.text = body.get_text(separator="\n", strip=True) if body else ""
 
 def user_prompt_for(website):
-    user_prompt = f"You are looking at a website titled {website.title}.\n"
-    user_prompt += "The contents of this website is as follows; \
-    please provide a short summary of this website in markdown. \
-    If it includes news or announcements, then summarize these too.\n\n"
-    user_prompt += website.text
-    return user_prompt
+    return (
+        f"You are looking at a website titled {website.title}.\n"
+        "The contents of this website is as follows; please provide a short summary "
+        "of this website in markdown. If it includes news or announcements, summarize those too.\n\n"
+        f"{website.text}"
+    )
 
 def messages_for(website):
-    system_prompt = "You are an assistant that analyzes the contents of a website \
-    and provides a short summary, ignoring text that might be navigation related. \
-    Respond in markdown."
     return [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": (
+            "You are an assistant that analyzes the contents of a website "
+            "and provides a short summary, ignoring text that might be navigation related. "
+            "Respond in markdown."
+        )},
         {"role": "user", "content": user_prompt_for(website)}
     ]
 
 def summarize(url):
     website = Website(url)
-    response = openai.chat.completions.create(
-        api_key=api_key,  # 使用直接的 API key
-        model="gpt-4o-mini",
+    response = client.chat.completions.create(
+        model="gpt-4o",
         messages=messages_for(website)
     )
     return response.choices[0].message.content
@@ -54,6 +72,5 @@ def display_summary(url):
     print(summary)
 
 if __name__ == "__main__":
-    NY = Website("https://www.nytimes.com/2025/03/23/business/media/sesame-street-layoffs-funding-cuts.html")
-    print(NY.title)
-    print(NY.text)
+    test_url = "https://www.nytimes.com/2025/03/23/business/media/sesame-street-layoffs-funding-cuts.html"
+    display_summary(test_url)
