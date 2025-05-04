@@ -5,6 +5,6 @@ Here I share some interesting staff about LLM Engneering 分享一些学习大�
 
 2. website-summerazer.py -- Calling the GPT API's Site Summary Assistant 使用Chatgpt API的网站内容总结助手
 
-3. 
+3. make_marketing_brochure -- Marketing brochure widget, use BeautifulSoup to crawl the company's official website content, links, etc., call ChatGPT API, analyze the content and summarize it into a brochure. 市场推广宣传手册小工具，使用BeautifulSoup爬取公司官网内容、链接等，调用ChatGPT API，分析内容，总结成宣传册。
 
 
